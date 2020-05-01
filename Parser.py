@@ -18,11 +18,15 @@ class Parser:
         self._order = -1
 
     def getNextLine(self):
-        self._buffer += os.read(0, self._readSize).decode()
-        while self._buffer.find('\n') == -1:
-            self._buffer += os.read(0, self._readSize).decode()
-        self._line = self._buffer[:self._buffer.find('\n')]
-        self._buffer = self._buffer[self._buffer.find('\n') + 1:]
+        #print("getnextline\n", file=sys.stderr, flush=True)
+        #self._buffer += os.read(0, self._readSize).decode()
+        #while self._buffer.find('\n') == -1:
+        #    print("getnextline 2\n", file=sys.stderr, flush=True)
+        #    self._buffer += os.read(0, self._readSize).decode()
+        #self._line = self._buffer[:self._buffer.find('\n')]
+        #self._buffer = self._buffer[self._buffer.find('\n') + 1:]
+        #print("getnextline END\n", file=sys.stderr, flush=True)
+        self._line = input()
         return self._line
 
     def getDataType(self):
@@ -54,7 +58,7 @@ class Parser:
             values = t.split(',')
             data[values[0]] = dict()
             for i, v in enumerate(values[1:]):
-                data[values[0]][self._settings['candle_format'][i]] = float(v)
+                data[values[0]][self._settings['candle_format'][i]] = [float(v)]
         # Debug
         print(data, file=sys.stderr, flush=True)
         return data
