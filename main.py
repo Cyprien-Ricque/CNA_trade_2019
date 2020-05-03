@@ -2,8 +2,8 @@
 
 import sys
 import os
-from Trader import Trader
-from Utils import d_print
+
+from src.Trader import Trader
 
 
 def main():
