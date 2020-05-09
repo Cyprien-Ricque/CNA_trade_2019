@@ -11,7 +11,10 @@ class Indicators:
         self.indList_ = ['current', 'MMA']
         self.data_ = pd.DataFrame()
         self.iter_ = 1
-    
+
+    def getPeriod(self):
+        return self.period_
+
     def addData(self, newData):
         self.data_.append(pd.DataFrame(newData))
 
@@ -19,7 +22,7 @@ class Indicators:
         return self.indList_
 
     def getIndicators(self):
-        return self.indicators_
+        return pd.DataFrame(self.indicators_)
 
     def indUnknown(self, ind):
         print("Indicator " + ind + " unknown", flush=True, file=sys.stderr)
@@ -42,17 +45,22 @@ class Indicators:
             return None
         self.indicators_['current'].append(self.data_.iloc[-1:, :].loc[:, 'close'].squeeze())
 
-    def increase(self):
-        if 'increase' not in self.indicators_:
-            self.indicators_['increase'] = [self.data_.iloc[-1:, :].loc[:, 'increase'].squeeze()]
-            self.indicators_['increase%'] = [self.data_.iloc[-1:, :].loc[:, 'increase%'].squeeze()]
-        if self.iter_ == len(self.indicators_['increase']):
+    def evolution(self, ind):
+        if 'evolution' not in self.indicators_:
+            self.indicators_['evolution'] = [self.data_.iloc[-1:, :].loc[:, 'close'].squeeze()]
+            self.indicators_['evolution%'] = [self.data_.iloc[-1:, :].loc[:, 'close'].squeeze()]
+        if self.data_.close.size < 2:
+            return 'Invalid'
+        if self.iter_ == len(self.indicators_['evolution']):
             return None
 
-        self.indicators_['increase'].append(0)
+        C = self.data_.iloc[-1:, :].loc[:, 'close'].squeeze()
+        C_prev = self.data_.iloc[-2:-1, :].loc[:, 'close'].squeeze()
+        self.indicators_['evolution'].append(C - C_prev)
 
-    def decrease(self):
-        pass
+        C_max = self.data_.iloc[-self.period_:, :].loc[:, 'close'].max().squeeze()
+        C_min = self.data_.iloc[-self.period_:, :].loc[:, 'close'].min().squeeze()
+        self.indicators_['evolution%'].append((C - C_prev) * 100 / (C_max - C_min))
 
     def MMA(self, ind):
         if 'MMA' not in self.indicators_:
@@ -104,19 +112,42 @@ class Indicators:
         self.indicators_['MACD'].append(R)
 
     def RSI(self, ind):
-        # RSI= 100 - [100/(1+H/B)]
-        # H qui est la moyenne des hausses pendant les X dernières Unités de Temps (UT).
-        # B qui est la moyenne des baisses pendant les X dernières Unités de Temps (UT).
-        # X= la valeur du RSI
-
         if 'RSI' not in self.indicators_:
             self.indicators_['RSI'] = [self.data_.iloc[-1:, :].loc[:, 'close'].squeeze()]
         if self.iter_ == len(self.indicators_['RSI']):
             return None
 
-        B = 0
-        H = 0
-        R = 100 - (100 / (1 + H / B))
+        self.evolution(None)
+
+        S = pd.Series(self.indicators_['evolution'])[-self.period_:]
+        H = S[S > 0].mean()
+        B = S[S < 0].mean()
+        RSI = 100 * H / (H - B)
+
+        self.indicators_['RSI'].append(RSI)
+
+    def BLG_UP(self, ind):
+        if 'BLG_UP' not in self.indicators_:
+            self.indicators_['BLG_UP'] = [self.data_.iloc[-1:, :].loc[:, 'close'].squeeze()]
+        if self.iter_ == len(self.indicators_['BLG_UP']):
+            return None
+
+        self.MME()
+        std = self.data_.iloc[-self.period_:, :].loc[:, 'close'].std()
+        self.indicators_['BLG_UP'].append(self.indicators_['MME'][-1] + std * 2)
+
+    def BLG_DOWN(self, ind):
+        if 'BLG_DOWN' not in self.indicators_:
+            self.indicators_['BLG_DOWN'] = [self.data_.iloc[-1:, :].loc[:, 'close'].squeeze()]
+        if self.iter_ == len(self.indicators_['BLG_DOWN']):
+            return None
+
+        self.MME()
+        std = self.data_.iloc[-self.period_:, :].loc[:, 'close'].std()
+        self.indicators_['BLG_DOWN'].append(self.indicators_['MME'][-1] - std * 2)
+
+
+
 
 
 
