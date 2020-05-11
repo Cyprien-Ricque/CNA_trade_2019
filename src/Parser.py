@@ -8,21 +8,21 @@ from enum import Enum
 class Parser:
 
     def __init__(self, readSize):
-        self._readSize = readSize
-        self._line = ''
-        self._buffer = ''
-        self._dataTypeStr = ['setting', 'candle', 'stack', 'action']
-        self._settings = {}
-        self._stacks = {}
-        self._order = -1
+        self.readSize_ = readSize
+        self.line_ = ''
+        self.buffer_ = ''
+        self.dataTypeStr_ = ['setting', 'candle', 'stack', 'action']
+        self.settings_ = {}
+        self.stacks_ = {}
+        self.order_ = -1
 
     def getNextLine(self):
-        self._line = input()
-        return self._line
+        self.line_ = input()
+        return self.line_
 
     def getDataType(self):
-        for t in self._dataTypeStr:
-            if t in self._line:
+        for t in self.dataTypeStr_:
+            if t in self.line_:
                 return t
         return ''
 
@@ -30,33 +30,33 @@ class Parser:
         return getattr(self, self.getDataType(), self.dataUnknown)()
 
     def dataUnknown(self):
-        print('data \"' + self._line + '\" unrecognized', file=sys.stderr, flush=True)
+        print('data \"' + self.line_ + '\" unrecognized', file=sys.stderr, flush=True)
         return ''
 
     def setting(self):
-        var = self._line.split(' ')[1]
-        value = self._line[len("settings ") + len(var) + 1:].split(',')
-        self._settings[var] = value
-        return self._settings
+        var = self.line_.split(' ')[1]
+        value = self.line_[len("settings ") + len(var) + 1:].split(',')
+        self.settings_[var] = value
+        return self.settings_
 
     def candle(self):
-        rawData = self._line[len("update game next_candles "):].split(';')
+        rawData = self.line_[len("update game next_candles "):].split(';')
         data = {}
 
         for t in rawData:
             values = t.split(',')
             data[values[0]] = dict()
             for i, v in enumerate(values[1:]):
-                data[values[0]][self._settings['candle_format'][i + 1]] = [float(v)]
+                data[values[0]][self.settings_['candle_format'][i + 1]] = [float(v)]
         return data
 
     def stack(self):
-        rawData = self._line[len("update game stacks "):].split(',')
+        rawData = self.line_[len("update game stacks "):].split(',')
 
         for r in rawData:
-            self._stacks[r.split(':')[0]] = float(r.split(':')[1])
-        return self._stacks
+            self.stacks_[r.split(':')[0]] = float(r.split(':')[1])
+        return self.stacks_
 
     def action(self):
-        self._order = int(self._line[len('action order '):])
-        return self._order
+        self.order_ = int(self.line_[len('action order '):])
+        return self.order_

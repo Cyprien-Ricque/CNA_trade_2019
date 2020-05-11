@@ -31,16 +31,12 @@ class Strategy:
         self.calcIndicators()
 
         X = self.indicators_.getIndicators().values
-        dataNormalizer = preprocessing.MinMaxScaler()
-        X = dataNormalizer.fit_transform(X)
         X = np.array([X[i:i + self.period_].copy() for i in range(self.indicators_.getPeriod(), X.shape[0] - self.period_)])
-        y = self.indicators_.getIndicators().current.values
-        dataNormalizer = preprocessing.MinMaxScaler()
-        y = dataNormalizer.fit_transform(np.array([np.array([i]) for i in y]))
+        y = self.indicators_.getIndicators().current_PP.values
         y = np.array([y[i + self.period_] for i in range(self.indicators_.getPeriod(), y.shape[0] - self.period_)])
 
-        print('X', X)
-        print('y', y)
+        # print('X', X)
+        # print('y', y)
         inputLSTM = Input(shape=(self.period_, X.shape[2]), name='input')
 
         print("INPUT SIZE ", inputLSTM)
@@ -63,11 +59,17 @@ class Strategy:
         dataNormalizer = preprocessing.MinMaxScaler()
         X = dataNormalizer.fit_transform(X)
         X = np.array([X[i:i + self.period_].copy() for i in range(self.indicators_.getPeriod(), X.shape[0] - self.period_)])
-        print("X to predict ", X.shape, file=sys.stderr)
         y_pred = self.model_.predict(X)
-        print("prediction ", y_pred[-1], file=sys.stderr)
+        pred = (y_pred[-1] * self.indicators_.getScaleValues()['current_max']) + self.indicators_.getScaleValues()['current_min']
+        print("prediction ", pred[0], file=sys.stderr)
+
+        if wallet.haveEnough(buy=True, pair=['USDT', 'ETH'], amount=0.01) and pred[0] > self.data_.loc[:, 'close'].iloc[-1]:
+            return 'buy USDT_ETH ' + wallet.buy(pair=['USDT', 'ETH']) + '\n'
+        elif wallet.haveEnough(buy=False, pair=['USDT', 'ETH'], amount=0.01):
+            return 'sell USDT_ETH ' + wallet.sell(pair=['USDT', 'ETH'], percent=50) + '\n'
 
         return 'pass\n'
+
 
 
 

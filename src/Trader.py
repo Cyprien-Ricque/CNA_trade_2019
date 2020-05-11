@@ -15,11 +15,16 @@ class Trader:
         self.strategy_ = Strategy()
         self.wallet_ = Wallet(None)
         self.save_ = os.dup(1)
+        self.trainTime_ = True
 
     def run(self):
         os.dup2(2, 1)
         self.parser_.getNextLine()
         data = self.parser_.getData()
+
+        if self.parser_.getDataType() == 'setting':
+            if 'transaction_fee_percent' in self.parser_.setting().keys():
+                self.wallet_.setFee(self.parser_.setting()['transaction_fee_percent'])
 
         if self.parser_.getDataType() == 'candle':
             self.strategy_.newData(data['USDT_ETH'])
@@ -30,7 +35,9 @@ class Trader:
             self.wallet_.updateWallet(data)
 
         if self.parser_.getDataType() == 'action':
-            self.strategy_.train()
+            if self.trainTime_ is True:
+                self.strategy_.train()
+                self.trainTime_ = False
             os.dup2(self.save_, 1)
             os.write(1, self.strategy_.predict(self.wallet_).encode())
             os.dup2(2, 1)

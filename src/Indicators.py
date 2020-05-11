@@ -11,6 +11,8 @@ class Indicators:
         self.indList_ = ['current', 'MMA']
         self.data_ = pd.DataFrame()
         self.iter_ = 1
+        self.actionsStarted_ = False
+        self.scaleValues_ = {'nb': 0}
 
     def getPeriod(self):
         return self.period_
@@ -18,11 +20,24 @@ class Indicators:
     def addData(self, newData):
         self.data_.append(pd.DataFrame(newData))
 
+    def getScaleValues(self):
+        return self.scaleValues_
+
+    def scaleCurrent(self, l):
+        return [i - self.indicators_['current'][-1] for i in l]
+
+    def scaleMinMax(self, data, dataType):
+        if self.actionsStarted_ is False:
+            self.scaleValues_[dataType + '_min'] = pd.Series(data[:self.scaleValues_['nb']]).min()
+            self.scaleValues_[dataType + '_max'] = pd.Series(data[:self.scaleValues_['nb']]).max()
+        return list(pd.Series(data).apply(lambda x: (x - self.scaleValues_[dataType + '_min']) / self.scaleValues_[dataType + '_max']))
+
     def getIndicatorsList(self):
         return self.indList_
 
     def getIndicators(self):
-        return pd.DataFrame(self.indicators_)
+        df = pd.DataFrame(self.indicators_)
+        return df.iloc[:, list(pd.Series(list(df.columns)).str.contains('PP'))]
 
     def indUnknown(self, ind):
         print("Indicator " + ind + " unknown", flush=True, file=sys.stderr)
@@ -32,8 +47,13 @@ class Indicators:
             if ind != self.indList_[-1]:
                 print(', ', file=sys.stderr, end='')
 
+    def startAnswer(self):
+        self.actionsStarted_ = True
+
     def calcIndicators(self, data, indList):
         self.iter_ += 1
+        if self.actionsStarted_ is False:
+            self.scaleValues_['nb'] += 1
         self.data_ = data
         for ind in indList:
             getattr(self, ind, self.indUnknown)(ind)
@@ -43,7 +63,9 @@ class Indicators:
             self.indicators_['current'] = [self.data_.iloc[-1:, :].loc[:, 'close'].squeeze()]
         if self.iter_ == len(self.indicators_['current']):
             return None
+
         self.indicators_['current'].append(self.data_.iloc[-1:, :].loc[:, 'close'].squeeze())
+        self.indicators_['current_PP'] = self.scaleMinMax(self.indicators_['current'], 'current')
 
     def evolution(self, ind):
         if 'evolution' not in self.indicators_:
@@ -61,6 +83,7 @@ class Indicators:
         C_max = self.data_.iloc[-self.period_:, :].loc[:, 'close'].max().squeeze()
         C_min = self.data_.iloc[-self.period_:, :].loc[:, 'close'].min().squeeze()
         self.indicators_['evolution%'].append((C - C_prev) * 100 / (C_max - C_min))
+        self.indicators_['evolution_PP'] = self.scaleMinMax(self.scaleCurrent(self.indicators_['evolution']), 'evolution')
 
     def MMA(self, ind):
         if 'MMA' not in self.indicators_:
@@ -69,6 +92,7 @@ class Indicators:
             return None
 
         self.indicators_['MMA'].append(self.data_.iloc[-self.period_:, :].loc[:, 'close'].mean())
+        self.indicators_['MMA_PP'] = self.scaleMinMax(self.scaleCurrent(self.indicators_['MMA']), 'MMA')
 
     def MME(self, ind=None, period=-1):
         if 'MME' not in self.indicators_:
@@ -83,6 +107,7 @@ class Indicators:
         if period != -1:
             return R
         self.indicators_['MME'].append(R)
+        self.indicators_['MME_PP'] = self.scaleMinMax(self.scaleCurrent(self.indicators_['MME']), 'MME')
 
     def MMP(self, ind):
         if 'MMP' not in self.indicators_:
@@ -92,6 +117,7 @@ class Indicators:
 
         S = np.array([(self.period_ - i) * self.data_.iloc[-(i + 1):-(i + 1), :].loc[:, 'close'].squeeze() for i in range(self.period_)]).sum()
         self.indicators_['MMP'].append(S / (self.period_ * (self.period_ + 1) / 2))
+        self.indicators_['MMP_PP'] = self.scaleMinMax(self.scaleCurrent(self.indicators_['MMP']), 'MMP')
 
     def MML(self, ind):
         if 'MML' not in self.indicators_:
@@ -101,6 +127,7 @@ class Indicators:
 
         C = self.data_.iloc[-1:, :].loc[:, 'close'].squeeze()
         self.indicators_['MML'].append(C - (self.indicators_['MML'][-1]) * (1 / self.period_) + (self.indicators_['MML'][-1]))
+        self.indicators_['MML_PP'] = self.scaleMinMax(self.scaleCurrent(self.indicators_['MML']), 'MML')
 
     def MACD(self, ind):
         if 'MACD' not in self.indicators_:
@@ -110,6 +137,7 @@ class Indicators:
 
         R = self.MME(period=26) - self.MME(period=12)
         self.indicators_['MACD'].append(R)
+        self.indicators_['MACD_PP'] = self.scaleMinMax(self.scaleCurrent(self.indicators_['MACD']), 'MACD')
 
     def RSI(self, ind):
         if 'RSI' not in self.indicators_:
@@ -125,6 +153,7 @@ class Indicators:
         RSI = 100 * H / (H - B)
 
         self.indicators_['RSI'].append(RSI)
+        self.indicators_['RSI_PP'] = self.scaleMinMax(self.scaleCurrent(self.indicators_['RSI']), 'RSI')
 
     def BLG_UP(self, ind):
         if 'BLG_UP' not in self.indicators_:
@@ -135,6 +164,7 @@ class Indicators:
         self.MME()
         std = self.data_.iloc[-self.period_:, :].loc[:, 'close'].std()
         self.indicators_['BLG_UP'].append(self.indicators_['MME'][-1] + std * 2)
+        self.indicators_['BLG_UP_PP'] = self.scaleMinMax(self.scaleCurrent(self.indicators_['BLG_UP']), 'BLG_UP')
 
     def BLG_DOWN(self, ind):
         if 'BLG_DOWN' not in self.indicators_:
@@ -145,6 +175,7 @@ class Indicators:
         self.MME()
         std = self.data_.iloc[-self.period_:, :].loc[:, 'close'].std()
         self.indicators_['BLG_DOWN'].append(self.indicators_['MME'][-1] - std * 2)
+        self.indicators_['BLG_DOWN_PP'] = self.scaleMinMax(self.scaleCurrent(self.indicators_['BLG_DOWN']), 'BLG_DOWN')
 
 
 
