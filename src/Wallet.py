@@ -18,7 +18,7 @@ class Wallet:
     def updateLinks(self, candles):
         for m in candles:
             # print(m, file=sys.stderr)
-            self._candles[m] = candles[m]['close'][0]
+            self._candles[m] = candles[m]['close']
 
     def haveEnough(self, buy, pair, amount):
         if buy is True:

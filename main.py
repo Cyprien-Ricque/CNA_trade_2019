@@ -8,7 +8,8 @@ from src.Trader import Trader
 
 def main():
     trader = Trader()
-    while 1:
+    os.dup2(2, 1)
+    while True:
         trader.run()
 
 

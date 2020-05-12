@@ -47,7 +47,7 @@ class Parser:
             values = t.split(',')
             data[values[0]] = dict()
             for i, v in enumerate(values[1:]):
-                data[values[0]][self.settings_['candle_format'][i + 1]] = [float(v)]
+                data[values[0]][self.settings_['candle_format'][i + 1]] = float(v)
         return data
 
     def stack(self):
