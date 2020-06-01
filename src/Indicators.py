@@ -37,15 +37,19 @@ class Indicators:
 
     def getIndicators(self):
         df = pd.DataFrame(self.indicators_)
+        # print("ICI INCDS ", self.indicators_)
+        # print(list(pd.Series(list(df.columns)).str.contains('PP')))
+        # print(df.iloc[:, list(pd.Series(list(df.columns)).str.contains('PP'))])
         return df.iloc[:, list(pd.Series(list(df.columns)).str.contains('PP'))]
 
     def indUnknown(self, ind):
-        print("Indicator " + ind + " unknown", flush=True, file=sys.stderr)
+        print("Indicator \"" + ind + "\" unknown", end='\n', flush=True, file=sys.stderr)
         print("Indicators available : ", file=sys.stderr, end='')
         for ind in self.indList_:
             print(ind, file=sys.stderr, end='')
             if ind != self.indList_[-1]:
                 print(', ', file=sys.stderr, end='')
+        print("\n", end='')
 
     def startAnswer(self):
         self.actionsStarted_ = True
@@ -69,21 +73,27 @@ class Indicators:
 
     def evolution(self, ind):
         if 'evolution' not in self.indicators_:
-            self.indicators_['evolution'] = [self.data_.iloc[-1:, :].loc[:, 'close'].squeeze()]
-            self.indicators_['evolution%'] = [self.data_.iloc[-1:, :].loc[:, 'close'].squeeze()]
-        if self.data_.close.size < 2:
+            self.indicators_['evolution'] = [0]
+            self.indicators_['evolution%'] = [0]
+        # print("evolution\n", file=sys.stderr)
+        if self.data_.close.size < 2 and self.iter_ != len(self.indicators_['evolution']):
+            self.indicators_['evolution'].append(0)
+            self.indicators_['evolution%'].append(0)
             return 'Invalid'
         if self.iter_ == len(self.indicators_['evolution']):
             return None
+        # print("evolution complete\n", file=sys.stderr)
 
         C = self.data_.iloc[-1:, :].loc[:, 'close'].squeeze()
         C_prev = self.data_.iloc[-2:-1, :].loc[:, 'close'].squeeze()
         self.indicators_['evolution'].append(C - C_prev)
-
-        C_max = self.data_.iloc[-self.period_:, :].loc[:, 'close'].max().squeeze()
-        C_min = self.data_.iloc[-self.period_:, :].loc[:, 'close'].min().squeeze()
-        self.indicators_['evolution%'].append((C - C_prev) * 100 / (C_max - C_min))
         self.indicators_['evolution_PP'] = self.scaleMinMax(self.scaleCurrent(self.indicators_['evolution']), 'evolution')
+
+        C_max = self.data_.iloc[-self.period_:, :].loc[:, 'close'].max()
+        C_min = self.data_.iloc[-self.period_:, :].loc[:, 'close'].min()
+        # print(C_max, file=sys.stderr)
+        self.indicators_['evolution%'].append((C - C_prev) * 100 / (C_max - C_min))
+        self.indicators_['evolution%_PP'] = self.scaleMinMax(self.scaleCurrent(self.indicators_['evolution%']), 'evolution%')
 
     def MMA(self, ind):
         if 'MMA' not in self.indicators_:
@@ -97,7 +107,7 @@ class Indicators:
     def MME(self, ind=None, period=-1):
         if 'MME' not in self.indicators_:
             self.indicators_['MME'] = [self.data_.iloc[-1:, :].loc[:, 'close'].squeeze()]
-        if self.iter_ == len(self.indicators_['MME']):
+        if self.iter_ == len(self.indicators_['MME']) and period == -1:
             return None
         P = self.period_ if period == -1 else period
 
