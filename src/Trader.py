@@ -12,18 +12,21 @@ import sys
 class Trader:
     def __init__(self):
         self.parser_ = Parser(2000)
-        self.updateModel_ = True
+        self.updateModel_ = False
         self.strategy_ = Strategy(self.updateModel_)
-        self.reDoModel_ = True
+        self.reDoModel_ = False
+        self.reDoModel_ = self.updateModel_ if self.updateModel_ is False else self.reDoModel_
         if self.reDoModel_ is True:
             self.strategy_.removeTrainedModel()
         self.wallet_ = Wallet(None)
         self.save_ = os.dup(1)
         self.trainTime_ = True
         self.startIter = None
-        self.startCalc = -200
-        self.startAddData = -240
+        self.startCalc = -330
+        self.startAddData = -330
         self.currentIter = 0
+
+        os.dup2(2, 1)
 
     def run(self):
         self.parser_.getNextLine()
@@ -53,18 +56,9 @@ class Trader:
 
         if self.parser_.getDataType() == 'action':
             if self.trainTime_ is True and self.updateModel_ is True:
-                print("TRAIN")
                 self.strategy_.train()
-                print("TRAIN END")
                 self.trainTime_ = False
-            print("PREDICT")
             os.dup2(self.save_, 1)
             os.write(1, self.strategy_.predict(self.wallet_).encode())
             os.dup2(2, 1)
-            print("PREDICT END")
-
-
-# Engine out: 'bot 0 send update game next_candles BTC_ETH,1516147200,0.095,0.09181,0.09219501,0.09199999,481.51276914;USDT_ETH,1516147200,1090.1676815,1022.16791604,1023.1,1029.99999994,1389783.7868468;USDT_BTC,1516147200,11600.12523891,11032.9211865,11041.42197477,11214.06052489,4123273.6568455'
-
-
 

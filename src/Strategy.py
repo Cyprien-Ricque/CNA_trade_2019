@@ -22,13 +22,18 @@ import shutil
 class Strategy:
     def __init__(self, updateModel=True):
         self.data_ = None
-        self.indicators_ = Indicators(18)
-        self.period_ = 30
+        self.indicatorsPeriod_ = 18
+        self.LSTMPeriod_ = 30
+        self.YPeriod_ = 8
+
+        self.indicators_ = Indicators(self.indicatorsPeriod_, ['current', 'MMA', 'MME', 'MMP', 'MACD', 'evolution', 'BLG_UP', 'BLG_DOWN'])
+
         self.dir_ = dirname(dirname(os.path.realpath(__file__))) + '/tradeModel'
         self.model_ = None
+        self.updateModel_ = updateModel
         if path.exists(self.dir_):
             self.model_ = tf.keras.models.load_model(self.dir_)
-        self.updateModel_ = updateModel
+
         self.tmp = True
 
     def newData(self, data):
@@ -39,19 +44,13 @@ class Strategy:
             self.data_ = self.data_.append(pd.Series(data), ignore_index=True)
 
     def calcIndicators(self):
-        print("Calcul des Indicateurs")
-        self.indicators_.calcIndicators(self.data_, ['current', 'MMA', 'MME', 'MMP', 'MACD', 'evolution', 'BLG_UP', 'BLG_DOWN'])
-#        self.indicators_.calcIndicators(self.data_, ['current', 'MMA', 'MME', 'MMP', 'evolution', 'MACD', 'RSI', 'BLG_UP', 'BLG_DOWN'])
+        self.indicators_.calcIndicators(self.data_)
 
     def createModel(self, x, y):
-        print("CREATE MODEL", x, y)
+        print("CREATE MODEL", x, y, file=sys.stderr)
         inputLSTM = Input(shape=(x, y), name='input')
 
-        # print("INPUT SIZE ", inputLSTM)
-        # print("INPUT SIZE2 ", X.shape)
-        # print("OUTPUT SIZE ", y.shape)
-
-        x = LSTM(self.period_, name='LSTM_0')(inputLSTM)
+        x = LSTM(self.LSTMPeriod_, name='LSTM_0')(inputLSTM)
         x = Dropout(0.05, name='LSTM_dropout_0')(x)
         x = Dense(64, name='dense_0')(x)
         x = Activation('sigmoid', name='sigmoid_0')(x)
@@ -68,47 +67,67 @@ class Strategy:
                 os.remove(self.dir_)
         except IsADirectoryError:
             shutil.rmtree(self.dir_)
-        print("MODEL REMOVED")
+        print("MODEL REMOVED", file=sys.stderr)
 
     def train(self):
-        self.calcIndicators()
 
-        X = self.indicators_.getIndicators().values
-        X = np.array([X[i:i + self.period_].copy() for i in range(self.period_, X.shape[0] - self.period_)])
-        y = self.indicators_.getIndicators().current_PP.values
-        y = np.array([y[i + self.period_] for i in range(self.period_, y.shape[0] - self.period_)])
+        if self.indicators_.isFirstActionPassed() is False:
+            self.indicators_.preprocess()
 
-        print('X', X)
-        print('y', y)
-        print("Shape: ", self.period_, " | ", X.shape, " | ", y.shape)
+        # === X === #
+        X = self.indicators_.getIndicators_PP().values
 
+        X = np.array([X[i:i + self.LSTMPeriod_].copy() for i in range(self.LSTMPeriod_, X.shape[0] - self.LSTMPeriod_ - self.YPeriod_)])
+        # X = np.array([X[i:i + self.period_].copy() for i in range(self.period_, X.shape[0] - self.period_)])
+
+        # === Y === #
+        y = self.indicators_.getIndicators(['current_PP']).current_PP.values
+
+        y = np.array([y[i + self.LSTMPeriod_:i + self.LSTMPeriod_ + self.YPeriod_].mean() for i in range(self.LSTMPeriod_, y.shape[0] - self.LSTMPeriod_ - self.YPeriod_)])
+        # y = np.array([y[i + self.period_] for i in range(self.period_, y.shape[0] - self.period_)])
+
+        # === SHAPE === #
+        print("Shape: ", self.LSTMPeriod_, " | ", X.shape, " | ", y.shape, file=sys.stderr)
+
+        # === CREATE MODEL === #
         if self.model_ is None:
-            self.createModel(self.period_, X.shape[2])
-            print("CREATE MODEL")
+            self.createModel(self.LSTMPeriod_, X.shape[2])
 
+        # === FIT MODEL === #
         self.model_.fit(x=X, y=y, batch_size=32, epochs=55, validation_split=0.1)
-        print("FIT MODEL")
+        print("FIT MODEL", file=sys.stderr)
 
+        # === SAVE MODEL === #
         self.removeTrainedModel()
 
         self.model_.save(self.dir_)
 
     def predict(self, wallet):
-        # print('predict', file=sys.stderr)
-        X = self.indicators_.getIndicators().values
-        X = np.array([X[i:i + self.period_].copy() for i in range(X.shape[0] - self.period_ - 1, X.shape[0] - self.period_)])
-        y_pred = self.model_.predict(np.array([X[-1]]))
+
+        # DO NOT PRINT on stdout in this function !
+
+        if self.indicators_.isFirstActionPassed() is False:
+            self.indicators_.preprocess()
+
+        # print(self.indicators_.getIndicators_PP(), file=sys.stderr, flush=True)
+
+        X = self.indicators_.getIndicators_PP().values
+        X = np.array(X[X.shape[0] - self.LSTMPeriod_:X.shape[0]].copy())
+        y_pred = self.model_.predict(np.array([X]))
         pred = (y_pred[-1] * self.indicators_.getScaleValues()['current_max']) + self.indicators_.getScaleValues()['current_min']
-        # print("prediction ", pred[0], file=sys.stderr)
+
+        currentMean = self.indicators_.getIndicators(['current']).iloc[-self.YPeriod_: -1].mean()[0]
+        # currentMean = self.indicators_.getIndicators(['current']).iloc[-1][0]
+        minTobuy = self.indicators_.getIndicators(['evolution']).evolution.std() / 2.5
 
         # if self.tmp:
-        #     self.tmp = False
-        #     return 'buy USDT_ETH ' + wallet.buy(['USDT', 'ETH'], 100)
+        #    self.tmp = False
+        #    return 'buy USDT_ETH ' + wallet.buy(['USDT', 'ETH'], 100)
 
-        if wallet.haveEnough(buy=True, pair=['USDT', 'ETH'], amount=0.01) and pred[0] > self.data_.loc[:, 'close'].iloc[-1]:
-            return 'buy USDT_ETH ' + wallet.buy(pair=['USDT', 'ETH'], percent=5)
-        elif wallet.haveEnough(buy=False, pair=['USDT', 'ETH'], amount=0.01):
-            return 'sell USDT_ETH ' + wallet.sell(pair=['USDT', 'ETH'], percent=50)
+        if wallet.haveEnough(buy=True, pair=['USDT', 'ETH'], amount=0.01) and pred[0] > minTobuy + currentMean:
+            return 'buy USDT_ETH ' + wallet.buy(pair=['USDT', 'ETH'], percent=10)
+        elif wallet.haveEnough(buy=False, pair=['USDT', 'ETH'], amount=0.01) and pred[0] < currentMean - minTobuy:
+            return 'sell USDT_ETH ' + wallet.sell(pair=['USDT', 'ETH'], percent=15)
 
         return 'pass\n'
 

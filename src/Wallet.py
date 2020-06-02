@@ -21,7 +21,6 @@ class Wallet:
 
     def updateLinks(self, candles):
         for m in candles:
-            # print(m, file=sys.stderr)
             self.candles_[m] = candles[m]['close']
 
     def haveEnough(self, buy, pair, amount):
@@ -35,7 +34,8 @@ class Wallet:
 
     def sell(self, pair, percent=5):
         max = self.initialStack_['USDT']
-        sell = max * (percent / 100) if max * (percent / 100) < self.wallet_[pair[1]] else self.wallet_[pair[1]]
+        sell = (max * (percent / 100)) / self.candles_[str(pair[0]) + '_' + str(pair[1])]
+        sell = sell if sell < self.wallet_[pair[1]] else self.wallet_[pair[1]]
         return str(sell) + '\n'
 
     def buy(self, pair, percent=5):
