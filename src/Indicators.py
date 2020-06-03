@@ -13,6 +13,7 @@ class Indicators:
         self.iter_ = 1
         self.actionsStarted_ = False
         self.scaleValues_ = {}
+        self.series0_ = pd.Series([0 for i in self.indicators_.columns], index=self.indicators_.columns)
 
     def getPeriod(self):
         return self.period_
@@ -56,7 +57,7 @@ class Indicators:
     def calcIndicators(self, data):
         self.iter_ += 1
         self.data_ = data
-        self.indicators_ = self.indicators_.append(pd.Series([0 for i in self.indicators_.columns], index=self.indicators_.columns), ignore_index=True)
+        self.indicators_ = self.indicators_.append(self.series0_, ignore_index=True)
         if data.shape[0] < 2:
             return
 

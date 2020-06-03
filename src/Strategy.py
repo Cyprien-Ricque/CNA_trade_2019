@@ -20,12 +20,12 @@ import shutil
 
 
 class Strategy:
-    def __init__(self, updateModel=True):
+    def __init__(self, updateModel=True, pair=('USDT', 'ETH')):
         self.data_ = None
         self.indicatorsPeriod_ = 18
         self.LSTMPeriod_ = 30
         self.YPeriod_ = 8
-
+        self.pair_ = pair
         self.indicators_ = Indicators(self.indicatorsPeriod_, ['current', 'MMA', 'MME', 'MMP', 'MACD', 'evolution', 'BLG_UP', 'BLG_DOWN'])
 
         self.dir_ = dirname(dirname(os.path.realpath(__file__))) + '/tradeModel'
@@ -71,6 +71,9 @@ class Strategy:
 
     def train(self):
 
+        print("HELLO", file=sys.stderr)
+        saveStdout = os.dup(1)
+
         if self.indicators_.isFirstActionPassed() is False:
             self.indicators_.preprocess()
 
@@ -109,7 +112,8 @@ class Strategy:
         if self.indicators_.isFirstActionPassed() is False:
             self.indicators_.preprocess()
 
-        # print(self.indicators_.getIndicators_PP(), file=sys.stderr, flush=True)
+#        print(self.indicators_.getIndicators_PP().iloc[:, :4], file=sys.stderr, flush=True)
+#        print(self.indicators_.getIndicators_PP().iloc[:, 4:], file=sys.stderr, flush=True)
 
         X = self.indicators_.getIndicators_PP().values
         X = np.array(X[X.shape[0] - self.LSTMPeriod_:X.shape[0]].copy())
@@ -120,14 +124,12 @@ class Strategy:
         # currentMean = self.indicators_.getIndicators(['current']).iloc[-1][0]
         minTobuy = self.indicators_.getIndicators(['evolution']).evolution.std() / 2.5
 
-        # if self.tmp:
-        #    self.tmp = False
-        #    return 'buy USDT_ETH ' + wallet.buy(['USDT', 'ETH'], 100)
+        # print(pred, currentMean, file=sys.stderr)
 
-        if wallet.haveEnough(buy=True, pair=['USDT', 'ETH'], amount=0.01) and pred[0] > minTobuy + currentMean:
-            return 'buy USDT_ETH ' + wallet.buy(pair=['USDT', 'ETH'], percent=10)
-        elif wallet.haveEnough(buy=False, pair=['USDT', 'ETH'], amount=0.01) and pred[0] < currentMean - minTobuy:
-            return 'sell USDT_ETH ' + wallet.sell(pair=['USDT', 'ETH'], percent=15)
+        if wallet.isEmpty(buy=True, pair=self.pair_) is False and pred[0] > minTobuy + currentMean:
+            return wallet.buy(pair=self.pair_, percent=10)
+        elif wallet.isEmpty(buy=False, pair=self.pair_) is False and pred[0] < currentMean - minTobuy:
+            return wallet.sell(pair=self.pair_, percent=25)
 
         return 'pass\n'
 

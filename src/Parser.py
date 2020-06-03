@@ -7,8 +7,7 @@ from enum import Enum
 
 class Parser:
 
-    def __init__(self, readSize):
-        self.readSize_ = readSize
+    def __init__(self):
         self.line_ = ''
         self.buffer_ = ''
         self.dataTypeStr_ = ['setting', 'candle', 'stack', 'action']

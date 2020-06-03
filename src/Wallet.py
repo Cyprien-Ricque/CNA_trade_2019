@@ -3,11 +3,12 @@ import os
 
 
 class Wallet:
-    def __init__(self, wallet):
+    def __init__(self, wallet, reference):
         self.wallet_ = wallet if wallet is not None else {}
         self.candles_ = {}
         self.fee_ = 0
         self.initialStack_ = {}
+        self.ref_ = reference
 
     def updateWallet(self, wallet):
         for m in wallet:
@@ -17,7 +18,7 @@ class Wallet:
         self.fee_ = fee
 
     def setInitialStack(self, IS):
-        self.initialStack_['USDT'] = IS
+        self.initialStack_[self.ref_] = IS
 
     def updateLinks(self, candles):
         for m in candles:
@@ -32,15 +33,22 @@ class Wallet:
             return False
         return True
 
+    def isEmpty(self, buy, pair):
+        if self.wallet_[pair[0]] > 0 and buy is True:
+            return False
+        if self.wallet_[pair[1]] > 0 and buy is False:
+            return False
+        return True
+
     def sell(self, pair, percent=5):
-        max = self.initialStack_['USDT']
-        sell = (max * (percent / 100)) / self.candles_[str(pair[0]) + '_' + str(pair[1])]
+        max = self.initialStack_[self.ref_]
+        sell = (max * (percent / 100)) / self.candles_[self.ref_ + '_' + str(pair[1])]
         sell = sell if sell < self.wallet_[pair[1]] else self.wallet_[pair[1]]
-        return str(sell) + '\n'
+        return 'sell ' + pair[0] + '_' + pair[1] + ' ' + str(sell) + '\n'
 
     def buy(self, pair, percent=5):
-        max = self.initialStack_['USDT']
+        max = self.initialStack_[self.ref_]
         buy = max * (percent / 100) if max * (percent / 100) < self.wallet_[pair[0]] else self.wallet_[pair[0]]
         buy /= self.candles_[str(pair[0]) + '_' + str(pair[1])]
-        return str(buy) + '\n'
+        return 'buy ' + pair[0] + '_' + pair[1] + ' ' + str(buy) + '\n'
 

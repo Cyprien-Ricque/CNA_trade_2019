@@ -2,7 +2,7 @@
 
 import sys
 import os
-
+import datetime
 from src.Trader import Trader
 
 
