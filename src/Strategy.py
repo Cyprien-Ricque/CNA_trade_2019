@@ -21,12 +21,12 @@ import shutil
 
 class Strategy:
     def __init__(self, updateModel=True, pair=('USDT', 'ETH')):
-        self.data_ = None
-        self.indicatorsPeriod_ = 18
+        self.indicatorsLongPeriod_ = 24
+        self.indicatorsShortPeriod_ = 12
         self.LSTMPeriod_ = 30
         self.YPeriod_ = 8
         self.pair_ = pair
-        self.indicators_ = Indicators(self.indicatorsPeriod_, ['current', 'MMA', 'MME', 'MMP', 'MACD', 'evolution', 'BLG_UP', 'BLG_DOWN'])
+        self.indicators_ = Indicators(self.indicatorsShortPeriod_, self.indicatorsLongPeriod_, ['current', 'MMA', 'MME', 'MMP', 'MACD', 'evolution', 'BLG_UP', 'BLG_DOWN'])
 
         self.dir_ = dirname(dirname(os.path.realpath(__file__))) + '/tradeModel'
         self.model_ = None
@@ -37,14 +37,10 @@ class Strategy:
         self.tmp = True
 
     def newData(self, data):
-        if self.data_ is None:
-            data = {**{item: [data[item]] for item in data}}
-            self.data_ = pd.DataFrame(data)
-        else:
-            self.data_ = self.data_.append(pd.Series(data), ignore_index=True)
+        self.indicators_.newData(data)
 
     def calcIndicators(self):
-        self.indicators_.calcIndicators(self.data_)
+        self.indicators_.calcIndicators()
 
     def createModel(self, x, y):
         print("CREATE MODEL", x, y, file=sys.stderr)
@@ -71,14 +67,14 @@ class Strategy:
 
     def train(self):
 
-        print("HELLO", file=sys.stderr)
-        saveStdout = os.dup(1)
-
         if self.indicators_.isFirstActionPassed() is False:
             self.indicators_.preprocess()
 
         # === X === #
         X = self.indicators_.getIndicators_PP().values
+
+        # for i in range(0, self.indicators_.getIndicators_PP().shape[0], 3):
+        #    print(self.indicators_.getIndicators_PP().iloc[:5, i:i+3], flush=True)
 
         X = np.array([X[i:i + self.LSTMPeriod_].copy() for i in range(self.LSTMPeriod_, X.shape[0] - self.LSTMPeriod_ - self.YPeriod_)])
         # X = np.array([X[i:i + self.period_].copy() for i in range(self.period_, X.shape[0] - self.period_)])
@@ -132,4 +128,3 @@ class Strategy:
             return wallet.sell(pair=self.pair_, percent=25)
 
         return 'pass\n'
-

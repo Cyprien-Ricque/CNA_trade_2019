@@ -17,7 +17,6 @@ class Parser:
 
     def getNextLine(self):
         self.line_ = input()
-        return self.line_
 
     def getDataType(self):
         for t in self.dataTypeStr_:
