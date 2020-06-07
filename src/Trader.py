@@ -15,12 +15,13 @@ class Trader:
 
         # === Update model === #
         self.updateModel_ = False
-        self.reDoModel_ = True
+        self.reDoModel_ = False
         # ==================== #
 
         # TODO Implémenter ça depuis les données envoyées
         self.pairs_ = [('USDT', 'ETH'), ('USDT', 'BTC'), ('BTC', 'ETH')]
-        self.strategy_ = Strategy(pairs=self.pairs_, updateModel=self.updateModel_)
+        self.trainPair_ = ('USDT', 'ETH')
+        self.strategy_ = Strategy(pairs=self.pairs_, trainPair=self.trainPair_, updateModel=self.updateModel_)
         self.reference_ = 'USDT'
         self.wallet_ = Wallet(None, self.reference_)
 

@@ -20,12 +20,13 @@ import shutil
 
 
 class Strategy:
-    def __init__(self, pairs, updateModel=False):
+    def __init__(self, pairs, trainPair, updateModel=False):
         self.indicatorsLongPeriod_ = 24
         self.indicatorsShortPeriod_ = 12
         self.LSTMPeriod_ = 30
         self.YPeriod_ = 8
         self.pairs_ = pairs
+        self.trainPair_ = trainPair
         self.indicators_ = {p[0] + '_' + p[1]: Indicators(self.indicatorsShortPeriod_, self.indicatorsLongPeriod_, ['MMA', 'MME', 'MMP', 'MACD', 'evolution', 'BLG_UP', 'BLG_DOWN']) for p in pairs}
 
         self.dir_ = dirname(dirname(os.path.realpath(__file__))) + '/tradeModel'
@@ -69,11 +70,11 @@ class Strategy:
 
     def train(self):
 
-        if self.indicators_[self.pairs_[0][0] + '_' + self.pairs_[0][1]].isFirstActionPassed() is False:
-            self.indicators_[self.pairs_[0][0] + '_' + self.pairs_[0][1]].preprocess()
+        if self.indicators_[self.trainPair_[0] + '_' + self.trainPair_[1]].isFirstActionPassed() is False:
+            self.indicators_[self.trainPair_[0] + '_' + self.trainPair_[1]].preprocess()
 
         # === X === #
-        X = self.indicators_[self.pairs_[0][0] + '_' + self.pairs_[0][1]].getIndicators_PP().values
+        X = self.indicators_[self.trainPair_[0] + '_' + self.trainPair_[1]].getIndicators_PP().values
 
         # for i in range(0, self.indicators_.getIndicators_PP().shape[1], 3):
         #     print(self.indicators_.getIndicators_PP().iloc[:5, i:i+3], flush=True)
@@ -82,7 +83,7 @@ class Strategy:
         # X = np.array([X[i:i + self.period_].copy() for i in range(self.period_, X.shape[0] - self.period_)])
 
         # === Y === #
-        y = self.indicators_[self.pairs_[0][0] + '_' + self.pairs_[0][1]].getIndicators(['evolution_PP']).evolution_PP.values
+        y = self.indicators_[self.trainPair_[0] + '_' + self.trainPair_[1]].getIndicators(['evolution_PP']).evolution_PP.values
 
         y = np.array([y[i + self.LSTMPeriod_:i + self.LSTMPeriod_ + self.YPeriod_].mean() for i in range(self.LSTMPeriod_, y.shape[0] - self.LSTMPeriod_ - self.YPeriod_)])
         # y = np.array([y[i + self.period_] for i in range(self.period_, y.shape[0] - self.period_)])
@@ -126,7 +127,7 @@ class Strategy:
 
         for p in y_pred:
             if wallet.isEmpty(buy=True, pair=p[2]) is False and p[1] > 0.5:
-                return wallet.buy(pair=p[2], percent=10)
+                return wallet.buy(pair=p[2], percent=25)
             elif wallet.isEmpty(buy=False, pair=p[2]) is False and p[1] < 0.5:
                 return wallet.sell(pair=p[2], percent=25)
 
