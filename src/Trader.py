@@ -8,17 +8,17 @@ import os
 
 class Trader:
     def __init__(self):
-        self.startCalc = -350
-        self.startAddData = -350
+        self.startCalc = -330
+        self.startAddData = -330
         self.startUpdateWallet = -3
         self.parser_ = Parser()
 
         # === Update model === #
         self.updateModel_ = False
-        self.reDoModel_ = False
+        self.reDoModel_ = True
         # ==================== #
 
-        self.pair_ = ('USDT', 'BTC')
+        self.pair_ = ('USDT', 'ETH')
         self.strategy_ = Strategy(self.updateModel_, self.pair_)
         self.reference_ = 'USDT'
         self.wallet_ = Wallet(None, self.reference_)
@@ -26,7 +26,6 @@ class Trader:
         self.reDoModel_ = self.updateModel_ if self.updateModel_ is False else self.reDoModel_
         if self.reDoModel_ is True:
             self.strategy_.removeTrainedModel()
-
 
         # === CONSTANT === #
         self.save_ = os.dup(1)

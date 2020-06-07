@@ -26,7 +26,7 @@ class Strategy:
         self.LSTMPeriod_ = 30
         self.YPeriod_ = 8
         self.pair_ = pair
-        self.indicators_ = Indicators(self.indicatorsShortPeriod_, self.indicatorsLongPeriod_, ['current', 'MMA', 'MME', 'MMP', 'MACD', 'evolution', 'BLG_UP', 'BLG_DOWN'])
+        self.indicators_ = Indicators(self.indicatorsShortPeriod_, self.indicatorsLongPeriod_, ['MMA', 'MME', 'MMP', 'MACD', 'evolution', 'BLG_UP', 'BLG_DOWN'])
 
         self.dir_ = dirname(dirname(os.path.realpath(__file__))) + '/tradeModel'
         self.model_ = None
@@ -73,14 +73,14 @@ class Strategy:
         # === X === #
         X = self.indicators_.getIndicators_PP().values
 
-        # for i in range(0, self.indicators_.getIndicators_PP().shape[0], 3):
-        #    print(self.indicators_.getIndicators_PP().iloc[:5, i:i+3], flush=True)
+        # for i in range(0, self.indicators_.getIndicators_PP().shape[1], 3):
+        #     print(self.indicators_.getIndicators_PP().iloc[:5, i:i+3], flush=True)
 
         X = np.array([X[i:i + self.LSTMPeriod_].copy() for i in range(self.LSTMPeriod_, X.shape[0] - self.LSTMPeriod_ - self.YPeriod_)])
         # X = np.array([X[i:i + self.period_].copy() for i in range(self.period_, X.shape[0] - self.period_)])
 
         # === Y === #
-        y = self.indicators_.getIndicators(['current_PP']).current_PP.values
+        y = self.indicators_.getIndicators(['evolution_PP']).evolution_PP.values
 
         y = np.array([y[i + self.LSTMPeriod_:i + self.LSTMPeriod_ + self.YPeriod_].mean() for i in range(self.LSTMPeriod_, y.shape[0] - self.LSTMPeriod_ - self.YPeriod_)])
         # y = np.array([y[i + self.period_] for i in range(self.period_, y.shape[0] - self.period_)])
@@ -108,23 +108,23 @@ class Strategy:
         if self.indicators_.isFirstActionPassed() is False:
             self.indicators_.preprocess()
 
-#        print(self.indicators_.getIndicators_PP().iloc[:, :4], file=sys.stderr, flush=True)
-#        print(self.indicators_.getIndicators_PP().iloc[:, 4:], file=sys.stderr, flush=True)
+        # print(self.indicators_.getIndicators_PP().iloc[:, :5], file=sys.stderr, flush=True)
+        # print(self.indicators_.getIndicators_PP().iloc[:, 5:], file=sys.stderr, flush=True)
 
         X = self.indicators_.getIndicators_PP().values
         X = np.array(X[X.shape[0] - self.LSTMPeriod_:X.shape[0]].copy())
         y_pred = self.model_.predict(np.array([X]))
-        pred = (y_pred[-1] * self.indicators_.getScaleValues()['current_max']) + self.indicators_.getScaleValues()['current_min']
+        # pred = (y_pred[-1] * self.indicators_.getScaleValues()['current_max']) + self.indicators_.getScaleValues()['current_min']
 
-        currentMean = self.indicators_.getIndicators(['current']).iloc[-self.YPeriod_: -1].mean()[0]
+        # currentMean = self.indicators_.getIndicators(['current']).iloc[-self.YPeriod_: -1].mean()[0]
         # currentMean = self.indicators_.getIndicators(['current']).iloc[-1][0]
-        minTobuy = self.indicators_.getIndicators(['evolution']).evolution.std() / 2.5
+        # minTobuy = self.indicators_.getIndicators(['evolution']).evolution.std() / 2.5
 
-        # print(pred, currentMean, file=sys.stderr)
+        print(y_pred, file=sys.stderr)
 
-        if wallet.isEmpty(buy=True, pair=self.pair_) is False and pred[0] > minTobuy + currentMean:
+        if wallet.isEmpty(buy=True, pair=self.pair_) is False and y_pred > 0.5:
             return wallet.buy(pair=self.pair_, percent=10)
-        elif wallet.isEmpty(buy=False, pair=self.pair_) is False and pred[0] < currentMean - minTobuy:
+        elif wallet.isEmpty(buy=False, pair=self.pair_) is False and y_pred < 0.5:
             return wallet.sell(pair=self.pair_, percent=25)
 
         return 'pass\n'

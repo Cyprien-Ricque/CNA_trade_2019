@@ -8,14 +8,24 @@ class Indicators:
     def __init__(self, short_period, long_period, indicators):
         self.data_ = None
         self.periods_ = np.sort([short_period, long_period])
+
+        # === INDICATORS === #
         self.fctList_ = indicators
         self.indUPList_ = ['current', 'evolution', 'MACD']
-        self.indList_ = [i + '_' + str(p) for p in self.periods_ for i in list(set(indicators) - set(self.indUPList_))] + self.indUPList_
+        self.indList_ = [i + '_' + str(p) for p in self.periods_ for i in list(set(indicators) - set(self.indUPList_))] + [i for i in self.indUPList_ if i in indicators]
         self.indicators_ = pd.DataFrame([[0 for i in self.indList_]], columns=self.indList_)
         self.data_ = pd.DataFrame()
+        # ================== #
+
+        # === SCALING === #
+        self.scaleMethod_ = {ind: 'scaleMinMax' for ind in self.indList_}
+        self.scaleMethod_['evolution'] = 'scaleMinMaxA0'
+        # =============== #
+
+        # === CONSTANT === #
         self.iter_ = 1
         self.actionsStarted_ = False
-        self.scaleValues_ = {}
+        self.sV_ = {}
         self.series0_ = pd.Series([0 for i in self.indicators_.columns], index=self.indicators_.columns)
 
     def newData(self, data):
@@ -29,7 +39,7 @@ class Indicators:
         return self.periods_
 
     def getScaleValues(self):
-        return self.scaleValues_
+        return self.sV_
 
     def getIndicatorsList(self):
         return self.indList_
@@ -50,15 +60,33 @@ class Indicators:
                 print(', ', file=sys.stderr, end='')
         print("\n", end='', file=sys.stderr)
 
+    def scaleMinMaxA0(self, s, ind):
+        # noinspection DuplicatedCode
+        return s.apply(
+            lambda x: ((self.sV_[ind]['min<0'] - x) / (-self.sV_[ind]['min<0'] + self.sV_[ind]['max<0'])) / -2 if x < 0 else (((x - self.sV_[ind]['min>0']) / self.sV_[ind]['max>0']) / 2) + 0.5)
+
+    def scaleMinMax(self, s, ind):
+        return s.apply(lambda x: (x - self.sV_[ind]['min']) / (self.sV_[ind]['max'] - self.sV_[ind]['min']))
+
+    def scaleMinMaxA0_1v(self, v, ind):
+        # noinspection DuplicatedCode
+        return ((self.sV_[ind]['min<0'] - v) / (-self.sV_[ind]['min<0'] + self.sV_[ind]['max<0'])) / -2 if v < 0 else (((v - self.sV_[ind]['min>0']) / self.sV_[ind]['max>0']) / 2) + 0.5
+
+    def scaleMinMax_1v(self, v, ind):
+        return (v - self.sV_[ind]['min']) / (self.sV_[ind]['max'] - self.sV_[ind]['min'])
+
     def preprocess(self):
         self.actionsStarted_ = True
 
-        for c in self.indicators_.columns:
-            self.scaleValues_[c + '_min'] = self.indicators_.loc[:, c].min()
-            self.scaleValues_[c + '_max'] = self.indicators_.loc[:, c].max()
-            self.indicators_.loc[:, c + '_PP'] = self.indicators_.loc[:, c].apply(lambda x: (x - self.scaleValues_[c + '_min']) / self.scaleValues_[c + '_max'])
-        print(self.scaleValues_['MACD' + '_min'])
-        print(self.scaleValues_['MACD' + '_max'])
+        for ind in self.indList_:
+            self.sV_[ind] = {}
+            self.sV_[ind]['min'] = self.indicators_.loc[:, ind].min()
+            self.sV_[ind]['max'] = self.indicators_.loc[:, ind].max()
+            self.sV_[ind]['min<0'] = self.indicators_.loc[self.indicators_.loc[:, ind] < 0, ind].min()
+            self.sV_[ind]['min>0'] = self.indicators_.loc[self.indicators_.loc[:, ind] >= 0, ind].min()
+            self.sV_[ind]['max<0'] = self.indicators_.loc[self.indicators_.loc[:, ind] < 0, ind].max()
+            self.sV_[ind]['max>0'] = self.indicators_.loc[self.indicators_.loc[:, ind] >= 0, ind].max()
+            self.indicators_.loc[:, ind + '_PP'] = getattr(self, self.scaleMethod_[ind])(self.indicators_.loc[:, ind], ind)
 
     def isFirstActionPassed(self):
         return self.actionsStarted_
@@ -73,9 +101,17 @@ class Indicators:
             for p in self.periods_:
                 getattr(self, ind, self.indUnknown)(p, ind + '_' + str(p))
 
-        if self.actionsStarted_ is True:
-            for ind in self.indList_:
-                self.indicators_.loc[:, ind + '_PP'].iloc[-1] = (self.indicators_.loc[:, ind].iloc[-1] - self.scaleValues_[ind + '_min']) / self.scaleValues_[ind + '_max']
+        if self.actionsStarted_ is False:
+            return
+        for ind in self.indList_:
+            if self.sV_[ind]['min'] != self.indicators_.loc[:, ind].min() or \
+                    self.sV_[ind]['max'] != self.indicators_.loc[:, ind].max() or \
+                    self.sV_[ind]['min<0'] != self.indicators_.loc[self.indicators_.loc[:, ind] < 0, ind].min() or \
+                    self.sV_[ind]['min>0'] != self.indicators_.loc[self.indicators_.loc[:, ind] >= 0, ind].min() or \
+                    self.sV_[ind]['max<0'] != self.indicators_.loc[self.indicators_.loc[:, ind] < 0, ind].max() or \
+                    self.sV_[ind]['max>0'] != self.indicators_.loc[self.indicators_.loc[:, ind] >= 0, ind].max():
+                return self.preprocess()
+            self.indicators_.loc[:, ind + '_PP'].iloc[-1] = getattr(self, self.scaleMethod_[ind] + '_1v')(self.indicators_.loc[:, ind].iloc[-1], ind)
 
     def current(self, period, ind):
         self.indicators_.current.iloc[-1] = self.data_.close.iloc[-1]
