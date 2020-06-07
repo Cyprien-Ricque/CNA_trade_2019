@@ -14,7 +14,6 @@ class Indicators:
         self.indUPList_ = ['current', 'evolution', 'MACD']
         self.indList_ = [i + '_' + str(p) for p in self.periods_ for i in list(set(indicators) - set(self.indUPList_))] + [i for i in self.indUPList_ if i in indicators]
         self.indicators_ = pd.DataFrame([[0 for i in self.indList_]], columns=self.indList_)
-        self.data_ = pd.DataFrame()
         # ================== #
 
         # === SCALING === #

@@ -8,8 +8,8 @@ import os
 
 class Trader:
     def __init__(self):
-        self.startCalc = -330
-        self.startAddData = -330
+        self.startCalc = -400
+        self.startAddData = -400
         self.startUpdateWallet = -3
         self.parser_ = Parser()
 
@@ -18,8 +18,9 @@ class Trader:
         self.reDoModel_ = True
         # ==================== #
 
-        self.pair_ = ('USDT', 'ETH')
-        self.strategy_ = Strategy(self.updateModel_, self.pair_)
+        # TODO Implémenter ça depuis les données envoyées
+        self.pairs_ = [('USDT', 'ETH'), ('USDT', 'BTC'), ('BTC', 'ETH')]
+        self.strategy_ = Strategy(pairs=self.pairs_, updateModel=self.updateModel_)
         self.reference_ = 'USDT'
         self.wallet_ = Wallet(None, self.reference_)
 
@@ -45,7 +46,7 @@ class Trader:
             if self.currentIter >= self.startIter + self.startUpdateWallet:
                 self.wallet_.updateLinks(data)
             if self.currentIter >= self.startIter + self.startAddData or self.updateModel_ is True:
-                self.strategy_.newData(data[self.pair_[0] + '_' + self.pair_[1]])
+                self.strategy_.newData(data)
                 if self.currentIter > self.startIter + self.startCalc or self.updateModel_:
                     self.strategy_.calcIndicators()
             return
