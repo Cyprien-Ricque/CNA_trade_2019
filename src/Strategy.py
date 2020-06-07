@@ -20,14 +20,14 @@ import shutil
 
 
 class Strategy:
-    def __init__(self, pairs, trainPair, updateModel=False):
+    def __init__(self, trainPair, updateModel=False):
         self.indicatorsLongPeriod_ = 24
         self.indicatorsShortPeriod_ = 12
         self.LSTMPeriod_ = 30
         self.YPeriod_ = 8
-        self.pairs_ = pairs
+        self.pairs_ = None
         self.trainPair_ = trainPair
-        self.indicators_ = {p[0] + '_' + p[1]: Indicators(self.indicatorsShortPeriod_, self.indicatorsLongPeriod_, ['MMA', 'MME', 'MMP', 'MACD', 'evolution', 'BLG_UP', 'BLG_DOWN']) for p in pairs}
+        self.indicators_ = None
 
         self.dir_ = dirname(dirname(os.path.realpath(__file__))) + '/tradeModel'
         self.model_ = None
@@ -36,6 +36,13 @@ class Strategy:
             self.model_ = tf.keras.models.load_model(self.dir_)
 
         self.tmp = True
+
+    def getPairs(self):
+        return self.pairs_
+
+    def setPairs(self, pairs):
+        self.pairs_ = pairs
+        self.indicators_ = {p[0] + '_' + p[1]: Indicators(self.indicatorsShortPeriod_, self.indicatorsLongPeriod_, ['MMA', 'MME', 'MMP', 'MACD', 'evolution', 'BLG_UP', 'BLG_DOWN']) for p in pairs}
 
     def newData(self, data):
         for p in self.pairs_:

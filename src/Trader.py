@@ -19,9 +19,8 @@ class Trader:
         # ==================== #
 
         # TODO Implémenter ça depuis les données envoyées
-        self.pairs_ = [('USDT', 'ETH'), ('USDT', 'BTC'), ('BTC', 'ETH')]
         self.trainPair_ = ('USDT', 'ETH')
-        self.strategy_ = Strategy(pairs=self.pairs_, trainPair=self.trainPair_, updateModel=self.updateModel_)
+        self.strategy_ = Strategy(trainPair=self.trainPair_, updateModel=self.updateModel_)
         self.reference_ = 'USDT'
         self.wallet_ = Wallet(None, self.reference_)
 
@@ -44,6 +43,8 @@ class Trader:
 
         if self.parser_.getDataType() == 'candle':
             self.currentIter += 1
+            if self.strategy_.getPairs() is None:
+                self.strategy_.setPairs([(s.split('_')[0], s.split('_')[1]) for s in data.keys()])
             if self.currentIter >= self.startIter + self.startUpdateWallet:
                 self.wallet_.updateLinks(data)
             if self.currentIter >= self.startIter + self.startAddData or self.updateModel_ is True:
